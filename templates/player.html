@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>People Count Dashboard</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: "Poppins", sans-serif;
+            background: #f2f4f8;
+            margin: 0;
+            padding: 30px;
+        }
+
+        h2 {
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: #333;
+            letter-spacing: 1px;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 18px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+            width: 500px;
+            text-align: center;
+        }
+
+        .card h3 {
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        img {
+            border-radius: 12px;
+            width: 100%;
+            border: 2px solid #ddd;
+        }
+
+        #count {
+            font-size: 70px;
+            font-weight: 700;
+            color: #0a84ff;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>People Count AI Dashboard</h2>
+
+<div class="container">
+
+    <!-- Left: Video -->
+    <div class="card">
+        <h3>Processed Video</h3>
+        <img src="/video_feed">
+    </div>
+
+    <!-- Right: Count -->
+    <div class="card">
+        <h3>Live People Count</h3>
+        <div id="count">0</div>
+    </div>
+
+</div>
+
+<script>
+    setInterval(() => {
+        fetch("/count")
+            .then(res => res.text())
+            .then(data => {
+                document.getElementById("count").innerText = data;
+            });
+    }, 400);
+</script>
+
+</body>
+</html>
