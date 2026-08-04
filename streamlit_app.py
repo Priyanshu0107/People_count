@@ -1,3 +1,5 @@
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, WebRtcMode
+import av
 import streamlit as st
 import cv2
 import numpy as np
@@ -159,68 +161,59 @@ with tab1:
         col4.metric("Min People Count", min(person_counts))
 
 # ============= TAB 2: REAL-TIME CAMERA =============
-with tab2:
-    st.subheader("Real-time Camera Feed")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Settings")
-        confidence_threshold_cam = st.slider("Detection Confidence", 0.0, 1.0, 0.5, key="cam_conf")
-        alert_threshold_cam = st.number_input("Alert when count increases by:", min_value=1, value=5, key="cam_alert")
-        show_boxes_cam = st.checkbox("Show detection boxes", value=True, key="cam_boxes")
-    
-    with col2:
-        st.subheader("Live Stats")
-        placeholder_count = st.empty()
-    
-    frame_placeholder_cam = st.empty()
-    
-    start_button = st.button("Start Camera")
-    stop_button = st.button("Stop Camera")
-    
-    if start_button:
-        cap = cv2.VideoCapture(0)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        
-        last_alert_count_cam = 0
-        
-        while not stop_button:
-            success, frame = cap.read()
-            if not success:
-                st.error("Cannot access camera")
-                break
-            
-            # Run detection
-            results = model(frame, conf=confidence_threshold_cam, verbose=False)
-            
-            person_count_cam = 0
-            
-            # Draw boxes and count
-            for r in results:
-                for box in r.boxes:
-                    cls = int(box.cls[0])
-                    if cls == 0:
-                        person_count_cam += 1
-                        if show_boxes_cam:
-                            x1, y1, x2, y2 = map(int, box.xyxy[0])
-                            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            
-            # Alert check
-            if person_count_cam - last_alert_count_cam >= alert_threshold_cam:
-                send_alert_email(person_count_cam)
-                last_alert_count_cam = person_count_cam
-            
-            # Add text
-            cv2.putText(frame, f"Count: {person_count_cam}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 2)
-            
-            # Display
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame_placeholder_cam.image(frame_rgb, channels="RGB")
-            placeholder_count.metric("People Count", person_count_cam)
-        
-        cap.release()
+# ============= TAB 2: REAL-TIME CAMERA =============
+class VideoProcessor(VideoProcessorBase):
+    def __init__(self):
+        self.last_alert_count = 0
 
-st.markdown("---")
-st.markdown("Made with ❤️ using Streamlit & YOLOv8")
+    def recv(self, frame):
+        img = frame.to_ndarray(format="bgr24")
+
+        results = model(img, conf=0.5, verbose=False)
+
+        person_count = 0
+
+        for r in results:
+            for box in r.boxes:
+                cls = int(box.cls[0])
+
+                if cls == 0:
+                    person_count += 1
+
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+
+                    cv2.rectangle(
+                        img,
+                        (x1, y1),
+                        (x2, y2),
+                        (0,255,0),
+                        2
+                    )
+
+        cv2.putText(
+            img,
+            f"People : {person_count}",
+            (20,40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0,255,0),
+            2
+        )
+
+        return av.VideoFrame.from_ndarray(img, format="bgr24")
+
+
+with tab2:
+
+    st.subheader("Real Time Camera")
+
+    webrtc_streamer(
+        key="people-counter",
+        mode=WebRtcMode.SENDRECV,
+        video_processor_factory=VideoProcessor,
+        media_stream_constraints={
+            "video": True,
+            "audio": False
+        },
+        async_processing=True,
+    )
